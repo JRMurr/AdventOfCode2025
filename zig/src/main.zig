@@ -1,6 +1,10 @@
 const std = @import("std");
 const zig = @import("aocLib");
 
+
+
+const day01 = @import("day01/day.zig");
+
 pub fn main() !void {
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    try day01.part01();
 }
