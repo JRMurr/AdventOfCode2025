@@ -2,9 +2,7 @@ const std = @import("std");
 const aocLib = @import("aocLib");
 const clap = @import("clap");
 
-
 const Days = aocLib.Days;
-
 
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -34,7 +32,6 @@ pub fn main() !void {
     var stdout_writer = std.fs.File.stdout().writer(&stdout_buffer);
     const stdout = &stdout_writer.interface;
 
-
     // Handle --help
     if (res.args.help != 0) {
         return clap.helpToFile(.stderr(), clap.Help, &params, .{});
@@ -46,8 +43,6 @@ pub fn main() !void {
     // // (we told clap nothing special about their types)
     // const day_str = res.positionals[0];
     // const part_str = res.positionals[1];
-
-
 
     const day_str = res.positionals[0] orelse return error.MissingArg1;
     const part = res.positionals[1] orelse return error.MissingArg1;
@@ -63,7 +58,6 @@ pub fn main() !void {
     };
 
     const filename = if (res.args.example != 0) "in.example" else "in";
-
 
     // Absolute path to the executable, e.g. .../your-project/zig-out/bin/aoc
     const exe_path = try std.fs.selfExePathAlloc(alloc);
@@ -86,7 +80,6 @@ pub fn main() !void {
     defer alloc.free(input_path);
 
     std.debug.print("input_path: {s}\n", .{input_path});
-
 
     const input_file = try std.fs.openFileAbsolute(input_path, .{});
     defer input_file.close();

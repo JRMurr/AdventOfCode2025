@@ -6,3 +6,6 @@ result
 
 .zig-cache
 zig-out
+
+# dont commit real inputs
+in

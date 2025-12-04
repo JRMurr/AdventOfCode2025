@@ -1,0 +1,27 @@
+{
+  // "zig.buildFilePath": "${workspaceFolder}/zig/build.zig",
+  // "zig.zls.buildOnSaveStep": "check",
+  "[zig]": {
+    // Formatting with ZLS matches `zig fmt`.
+    // "editor.formatOnSave": false,
+
+    // "editor.inlayHints.enabled": "off",
+
+    // overwrite words when accepting completions
+    "editor.suggest.insertMode": "replace",
+    "editor.codeActionsOnSave": {
+      // Run code actions that currently supports adding and removing discards.
+      // "source.fixAll": "explicit",
+      // Run code actions that sorts @import declarations.
+      "source.organizeImports": "explicit"
+    }
+  },
+  "zig.zls.enabled": "on",
+  "zig.zls.additionalOptions": {
+    "zig.zls.enableBuildOnSave": true
+  },
+  "zig.buildOnSaveArgs": ["--build-file", "zig/build.zig", "check"],
+  "zig.buildOnSaveProvider": "zls",
+  "zig.zls.debugLog": true
+  // "zig.zls.trace.server": "verbose"
+}
