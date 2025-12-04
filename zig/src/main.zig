@@ -64,12 +64,34 @@ pub fn main() !void {
 
     const filename = if (res.args.example != 0) "in.example" else "in";
 
-    // Adjust this path to your layout (here: src/dayXX/in or in.example)
-    const input_path = try std.fmt.allocPrint(alloc, "src/day{s}/{s}", .{ day_str, filename });
+
+    // Absolute path to the executable, e.g. .../your-project/zig-out/bin/aoc
+    const exe_path = try std.fs.selfExePathAlloc(alloc);
+    defer alloc.free(exe_path);
+
+    // Directory containing the exe, e.g. .../your-project/zig-out/bin
+    const exe_dir = std.fs.path.dirname(exe_path) orelse ".";
+
+    // Parent of exe_dir: zig-out
+    const zig_out_dir = std.fs.path.dirname(exe_dir) orelse exe_dir;
+    // Parent of zig-out: project root
+    const project_root = std.fs.path.dirname(zig_out_dir) orelse zig_out_dir;
+
+    // "dayXX"
+    const day_dir = try std.fmt.allocPrint(alloc, "lib/day{s}", .{day_str});
+    defer alloc.free(day_dir);
+
+    // Full absolute path: <project_root>/src/dayXX/<filename>
+    const input_path = try std.fs.path.join(alloc, &.{ project_root, "src", day_dir, filename });
     defer alloc.free(input_path);
 
-    const cwd = std.fs.cwd();
-    const input = try cwd.readFileAlloc(alloc, input_path, 1024 * 1024);
+    std.debug.print("input_path: {s}\n", .{input_path});
+
+
+    const input_file = try std.fs.openFileAbsolute(input_path, .{});
+    defer input_file.close();
+
+    const input = try input_file.readToEndAlloc(alloc, 1024 * 1024);
     defer alloc.free(input);
 
     switch (part) {
