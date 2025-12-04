@@ -16,6 +16,13 @@ pub fn build(b: *std.Build) void {
     // between Debug, ReleaseSafe, ReleaseFast, and ReleaseSmall. Here we do not
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
+
+    // Generate a file with literal @import statements for dayXX modules.
+    const gen_files = b.addWriteFiles();
+    const days_generated_path = genDaysFile(b, gen_files) catch @panic("failed to generate days file");
+    const days_generated_mod = b.addModule("days_generated", .{
+        .root_source_file = days_generated_path,
+    });
     // It's also possible to define more custom flags to toggle optional features
     // of this build script using `b.option()`. All defined flags (including
     // target and optimize options) will be listed when running `zig build --help`
@@ -40,6 +47,7 @@ pub fn build(b: *std.Build) void {
         // which requires us to specify a target.
         .target = target,
     });
+    mod.addImport("days_generated", days_generated_mod);
 
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -82,6 +90,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
+    exe.root_module.addImport("days_generated", days_generated_mod);
 
     // // Create a module just like in the `zig init` template.
     // const exe_mod = b.addModule("foo", .{
@@ -124,6 +133,7 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
+    exe_check.root_module.addImport("days_generated", days_generated_mod);
 
     // Finally we add the "check" step which will be detected
     // by ZLS and automatically enable Build-On-Save.
@@ -206,4 +216,46 @@ pub fn build(b: *std.Build) void {
     // Lastly, the Zig build system is relatively simple and self-contained,
     // and reading its source code will allow you to master it.
 
+}
+
+fn genDaysFile(b: *std.Build, gen: *std.Build.Step.WriteFile) !std.Build.LazyPath {
+    var buf = std.ArrayList(u8).empty;
+    defer buf.deinit(b.allocator);
+    const w = buf.writer(b.allocator);
+    try w.writeAll("pub const days = .{\n");
+
+    var names = std.ArrayList([]const u8).empty;
+    defer {
+        for (names.items) |name| {
+            b.allocator.free(name);
+        }
+        names.deinit(b.allocator);
+    }
+
+    var dir = try std.fs.cwd().openDir("src/lib", .{ .iterate = true });
+    defer dir.close();
+    var it = dir.iterate();
+    while (try it.next()) |entry| {
+        if (entry.kind != .directory) continue;
+        if (entry.name.len != 5) continue;
+        if (!std.mem.startsWith(u8, entry.name, "day")) continue;
+        const num = std.fmt.parseInt(u8, entry.name[3..], 10) catch continue;
+        if (num == 0) continue;
+        try names.append(b.allocator, try b.allocator.dupe(u8, entry.name));
+    }
+
+    // Keep deterministic ordering.
+    std.mem.sort([]const u8, names.items, {}, struct {
+        fn lessThan(_: void, first: []const u8, second: []const u8) bool {
+            return std.mem.lessThan(u8, first, second);
+        }
+    }.lessThan);
+
+    for (names.items) |name| {
+        try w.print("    .{{ \"{s}\", @import(\"{s}/day.zig\").day }},\n", .{ name, name });
+    }
+
+    try w.writeAll("};\n");
+
+    return gen.add("generated_days.zig", try buf.toOwnedSlice(b.allocator));
 }

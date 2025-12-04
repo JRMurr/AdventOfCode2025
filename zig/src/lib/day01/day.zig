@@ -70,7 +70,15 @@ pub fn part02(_: std.mem.Allocator, input: []const u8) anyerror!void {
             num_zero += try std.math.divFloor(u32, @intCast(new_pos), 100);
         }
 
-        std.debug.print("dir: {}\t num: {d} \t num_full_spins: {d} \t spin_normalized: {d} \t spin_with_dir: {d} \t new_pos: {d} pos: {d}\n", .{ dir, num, num_full_spins, spin_normalized, spin_with_dir, new_pos, pos });
+        std.debug.print("dir: {}\t num: {d} \t num_full_spins: {d} \t spin_normalized: {d} \t spin_with_dir: {d} \t new_pos: {d} pos: {d}\n", .{
+            dir,
+            num,
+            num_full_spins,
+            spin_normalized,
+            spin_with_dir,
+            new_pos,
+            pos,
+        });
     }
 
     std.debug.print("Part 2\nnum_zero: {d}\n", .{num_zero});
