@@ -36,6 +36,10 @@
             .url = "https://github.com/Hejsil/zig-clap/archive/refs/tags/0.11.0.tar.gz",
             .hash = "clap-0.11.0-oBajB-HnAQDPCKYzwF7rO3qDFwRcD39Q0DALlTSz5H7e",
         },
+        .mecha = .{
+            .url = "https://github.com/Hejsil/mecha/archive/refs/tags/0.11.0.tar.gz",
+            .hash = "mecha-0.11.0-dVGaSDNfAQA6B-SiB1TGG0HoOBdw1BFGMdQJV44pEgB4",
+        },
     },
     .paths = .{
         "build.zig",

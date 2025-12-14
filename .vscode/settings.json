@@ -22,6 +22,7 @@
   },
   "zig.buildOnSaveArgs": ["--build-file", "zig/build.zig", "check"],
   "zig.buildOnSaveProvider": "zls",
-  "zig.zls.debugLog": true
+  "zig.zls.debugLog": true,
+  "cSpell.words": ["mecha"]
   // "zig.zls.trace.server": "verbose"
 }
