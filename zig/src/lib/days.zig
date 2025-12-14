@@ -1,9 +1,8 @@
 const std = @import("std");
 
-const gen = @import("days_generated");
-pub const days = gen.days;
-
 const aocLib = @import("root.zig");
+const gen = @import("generated_days.zig");
+pub const days = gen.days;
 
 // const days = .{
 //     .{ "01", @import("day01/day.zig").day },

@@ -18,11 +18,7 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     // Generate a file with literal @import statements for dayXX modules.
-    const gen_files = b.addWriteFiles();
-    const days_generated_path = genDaysFile(b, gen_files) catch @panic("failed to generate days file");
-    const days_generated_mod = b.addModule("days_generated", .{
-        .root_source_file = days_generated_path,
-    });
+    _ = genDaysFile(b) catch @panic("failed to generate days file");
     // It's also possible to define more custom flags to toggle optional features
     // of this build script using `b.option()`. All defined flags (including
     // target and optimize options) will be listed when running `zig build --help`
@@ -47,7 +43,6 @@ pub fn build(b: *std.Build) void {
         // which requires us to specify a target.
         .target = target,
     });
-    mod.addImport("days_generated", days_generated_mod);
 
     // Here we define an executable. An executable needs to have a root module
     // which needs to expose a `main` function. While we could add a main function
@@ -90,8 +85,6 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    exe.root_module.addImport("days_generated", days_generated_mod);
-
     // // Create a module just like in the `zig init` template.
     // const exe_mod = b.addModule("foo", .{
     //     .root_source_file = b.path("src/main.zig"),
@@ -133,7 +126,6 @@ pub fn build(b: *std.Build) void {
             },
         }),
     });
-    exe_check.root_module.addImport("days_generated", days_generated_mod);
 
     // Finally we add the "check" step which will be detected
     // by ZLS and automatically enable Build-On-Save.
@@ -218,7 +210,7 @@ pub fn build(b: *std.Build) void {
 
 }
 
-fn genDaysFile(b: *std.Build, gen: *std.Build.Step.WriteFile) !std.Build.LazyPath {
+fn genDaysFile(b: *std.Build) !std.Build.LazyPath {
     var buf = std.ArrayList(u8).empty;
     defer buf.deinit(b.allocator);
     const w = buf.writer(b.allocator);
@@ -257,5 +249,13 @@ fn genDaysFile(b: *std.Build, gen: *std.Build.Step.WriteFile) !std.Build.LazyPat
 
     try w.writeAll("};\n");
 
-    return gen.add("generated_days.zig", try buf.toOwnedSlice(b.allocator));
+    const out_path = b.pathFromRoot("src/lib/generated_days.zig");
+    defer b.allocator.free(out_path);
+
+    // Write alongside the rest of the library so relative imports stay inside the module path.
+    var f = try std.fs.createFileAbsolute(out_path, .{ .truncate = true });
+    defer f.close();
+    try f.writeAll(buf.items);
+
+    return b.path("src/lib/generated_days.zig");
 }
