@@ -21,6 +21,14 @@
     "zig.zls.enableBuildOnSave": true
   },
   "zig.buildOnSaveArgs": ["--build-file", "zig/build.zig", "check"],
+  "zig.testArgs": [
+    "test",
+    "--build-file",
+    "zig/build.zig",
+    "--test-filter",
+    "${filter}",
+    "${path}"
+  ],
   "zig.buildOnSaveProvider": "zls",
   "zig.zls.debugLog": true,
   "cSpell.words": ["mecha"]

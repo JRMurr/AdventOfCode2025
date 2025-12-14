@@ -1,8 +1,7 @@
 const std = @import("std");
 
+const aocLib = @import("aocLib");
 const mecha = @import("mecha");
-
-const aocLib = @import("../root.zig");
 
 pub const day = aocLib.Day{ .part1 = part01, .part2 = part02 };
 
@@ -65,6 +64,68 @@ pub fn part01(alloc: std.mem.Allocator, input: []const u8) anyerror!void {
     std.debug.print("Part 1: {d}\n", .{res});
 }
 
-pub fn part02(_: std.mem.Allocator, _: []const u8) anyerror!void {
-    std.debug.print("Part 2\n", .{});
+fn checkIfRepeating(x: usize) !usize {
+    const numDigits = std.math.log10_int(x) + 1;
+
+    const halfNumDigits = try std.math.divFloor(usize, numDigits, 2);
+
+    lenLoop: for (1..(halfNumDigits + 1)) |raise| {
+        if (numDigits % raise != 0) {
+            continue;
+        }
+
+        const mod: isize = @intCast(std.math.pow(usize, 10, raise));
+
+        var acc: isize = @intCast(x);
+
+        const toCheck = @mod(acc, mod);
+
+        acc = try std.math.divFloor(isize, (acc - toCheck), mod);
+
+        while (acc > 0) {
+            const maybeSame = @mod(acc, mod);
+
+            if (maybeSame != toCheck) {
+                continue :lenLoop;
+            }
+
+            acc = try std.math.divFloor(isize, (acc - toCheck), mod);
+        }
+
+        if (acc == 0) {
+            return x;
+        }
+    }
+
+    return 0;
+}
+
+pub fn part02(alloc: std.mem.Allocator, input: []const u8) anyerror!void {
+    const stripped = try stripNewLine(alloc, input);
+    defer alloc.free(stripped);
+
+    var res: u64 = 0;
+
+    var it = std.mem.tokenizeScalar(u8, stripped, ',');
+    while (it.next()) |token| {
+        const range = (try rangeParse.parse(alloc, token)).value.ok;
+
+        for ((range.start)..(range.end + 1)) |x| {
+            const maybeRepeating = try checkIfRepeating(x);
+            // if (maybeRepeating != 0) {
+            //     std.debug.print("x: {d}\n", .{x});
+            // }
+            res += maybeRepeating;
+        }
+    }
+
+    std.debug.print("Part 2: {d}\n", .{res});
+}
+
+test "checkIfRepeating valid odd length" {
+    try std.testing.expectEqual(824824824, try checkIfRepeating(824824824));
+}
+
+test "checkIfRepeating invalid odd length" {
+    try std.testing.expectEqual(0, try checkIfRepeating(1001001));
 }
