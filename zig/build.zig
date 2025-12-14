@@ -244,7 +244,8 @@ fn genDaysFile(b: *std.Build) !std.Build.LazyPath {
     }.lessThan);
 
     for (names.items) |name| {
-        try w.print("    .{{ \"{s}\", @import(\"{s}/day.zig\").day }},\n", .{ name, name });
+        // Store days keyed by the zero-padded day number (e.g. "01") instead of "day01".
+        try w.print("    .{{ \"{s}\", @import(\"{s}/day.zig\").day }},\n", .{ name[3..], name });
     }
 
     try w.writeAll("};\n");
