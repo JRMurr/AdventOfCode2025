@@ -31,6 +31,9 @@
   ],
   "zig.buildOnSaveProvider": "zls",
   "zig.zls.debugLog": true,
-  "cSpell.words": ["mecha"]
+  "cSpell.words": ["mecha"],
+  "zig.path": "zig",
+  "zig.zls.path": "zls",
+  "zig.zls.trace.server": "verbose"
   // "zig.zls.trace.server": "verbose"
 }
