@@ -112,7 +112,12 @@ pub fn part01(alloc: std.mem.Allocator, input: []const u8) anyerror!void {
 
     var it = std.mem.tokenizeScalar(u8, input, '\n');
     while (it.next()) |token| {
-        const jolts = try findJolts(digits, alloc, token, &out);
+        const jolts = try findJolts(
+            digits,
+            alloc,
+            token,
+            &out,
+        );
 
         res += jolts;
     }

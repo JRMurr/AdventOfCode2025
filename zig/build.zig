@@ -17,19 +17,9 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const running_from_zls = std.process.hasEnvVarConstant("ZLS_ENABLED") or std.process.hasEnvVarConstant("ZLS");
-    const generated_days_path = "src/lib/generated_days.zig";
-    const should_generate_days = blk: {
-        if (!running_from_zls) break :blk true;
-        // ZLS probes the build frequently; skip regeneration if the file already exists.
-        const existing = std.fs.cwd().openFile(generated_days_path, .{}) catch |err| switch (err) {
-            error.FileNotFound, error.NotDir => break :blk true,
-            else => @panic(@errorName(err)),
-        };
-        existing.close();
-        break :blk false;
-    };
-    if (should_generate_days) {
+    const skip_gen_days = b.option(bool, "skip-gen-days", "Skip generating generated_days.zig") orelse false;
+
+    if (!skip_gen_days) {
         _ = genDaysFile(b) catch @panic("failed to generate days file");
     }
     // It's also possible to define more custom flags to toggle optional features

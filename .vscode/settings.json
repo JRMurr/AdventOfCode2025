@@ -20,11 +20,17 @@
   "zig.zls.additionalOptions": {
     "zig.zls.enableBuildOnSave": true
   },
-  "zig.buildOnSaveArgs": ["--build-file", "zig/build.zig", "check"],
+  "zig.buildOnSaveArgs": [
+    "--build-file",
+    "zig/build.zig",
+    "-Dskip-gen-days",
+    "check"
+  ],
   "zig.testArgs": [
     "test",
     "--build-file",
     "zig/build.zig",
+    "-Dskip-gen-days",
     "--test-filter",
     "${filter}",
     "${path}"
