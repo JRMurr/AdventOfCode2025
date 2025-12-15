@@ -6,7 +6,7 @@ const aocLib = @import("aocLib");
 pub const day = aocLib.Day{ .part1 = part01, .part2 = part02 };
 
 const DigitWorkspace = struct {
-    pub const digits: []const u8 = "98765432";
+    pub const digits: []const u8 = "987654321";
     out: [digits.len]BitSet,
 
     pub fn init() DigitWorkspace {
@@ -75,7 +75,7 @@ pub fn dropBefore(bs: *BitSet, cutoff: usize) void {
     bs.setRangeValue(.{ .start = 0, .end = end }, false);
 }
 
-fn findJolts(comptime digits: []const u8, alloc: std.mem.Allocator, line: []const u8, out: *[digits.len]BitSet) !usize {
+fn findJoltsP1(comptime digits: []const u8, alloc: std.mem.Allocator, line: []const u8, out: *[digits.len]BitSet) !usize {
     try findPerNeedle(32, digits, alloc, line, out);
 
     var jolts: usize = 0;
@@ -128,7 +128,7 @@ pub fn part01(alloc: std.mem.Allocator, input: []const u8) anyerror!void {
 
     var it = std.mem.tokenizeScalar(u8, input, '\n');
     while (it.next()) |token| {
-        const jolts = try findJolts(
+        const jolts = try findJoltsP1(
             DigitWorkspace.digits,
             alloc,
             token,
@@ -141,11 +141,7 @@ pub fn part01(alloc: std.mem.Allocator, input: []const u8) anyerror!void {
     std.debug.print("Part 1: {d}\n", .{res});
 }
 
-pub fn part02(_: std.mem.Allocator, _: []const u8) anyerror!void {
-    std.debug.print("Part 2\n", .{});
-}
-
-test "findJolts sample lines" {
+test "findJoltsP1 sample lines" {
     const alloc = std.testing.allocator;
     var ws = DigitWorkspace.init();
     defer ws.deinit(alloc);
@@ -159,7 +155,114 @@ test "findJolts sample lines" {
     };
 
     for (cases) |case| {
-        const res = try findJolts(DigitWorkspace.digits, alloc, case.line, &ws.out);
+        const res = try findJoltsP1(DigitWorkspace.digits, alloc, case.line, &ws.out);
+        try std.testing.expectEqual(case.expect, res);
+    }
+}
+
+pub fn part02(alloc: std.mem.Allocator, input: []const u8) anyerror!void {
+    var digits_ws = DigitWorkspace.init();
+    defer digits_ws.deinit(alloc);
+
+    var res: usize = 0;
+
+    var it = std.mem.tokenizeScalar(u8, input, '\n');
+    while (it.next()) |token| {
+        const jolts = try findJoltsP2(
+            DigitWorkspace.digits,
+            alloc,
+            token,
+            &digits_ws.out,
+        );
+
+        res += jolts;
+    }
+
+    std.debug.print("Part 2: {d}\n", .{res});
+}
+
+const SelectedNum = struct { idx: usize, num: usize };
+
+fn insertSorted(alloc: std.mem.Allocator, list: *std.ArrayList(SelectedNum), p: SelectedNum) !void {
+    const i = std.sort.lowerBound(SelectedNum, list.items, p.idx, comptime struct {
+        fn order(context: usize, item: SelectedNum) std.math.Order {
+            return std.math.order(context, item.idx);
+        }
+    }.order);
+
+    try list.insert(alloc, i, p);
+}
+
+test "insertSorted keeps list ordered by idx" {
+    const alloc = std.testing.allocator;
+    var list = std.ArrayList(SelectedNum).empty;
+    defer list.deinit(alloc);
+
+    try insertSorted(alloc, &list, .{ .idx = 5, .num = 50 });
+    try insertSorted(alloc, &list, .{ .idx = 2, .num = 20 });
+    try insertSorted(alloc, &list, .{ .idx = 9, .num = 90 });
+    try insertSorted(alloc, &list, .{ .idx = 7, .num = 70 });
+
+    const expected = [_]SelectedNum{
+        .{ .idx = 2, .num = 20 },
+        .{ .idx = 5, .num = 50 },
+        .{ .idx = 7, .num = 70 },
+        .{ .idx = 9, .num = 90 },
+    };
+
+    try std.testing.expectEqualSlices(SelectedNum, &expected, list.items);
+}
+
+fn findJoltsP2(comptime digits: []const u8, alloc: std.mem.Allocator, line: []const u8, out: *[digits.len]BitSet) !usize {
+    try findPerNeedle(32, digits, alloc, line, out);
+
+    // var jolts: usize = 0;
+
+    // var cutOff: usize = 0;
+
+    var num: usize = 9;
+
+    var selected = std.ArrayList(SelectedNum).empty;
+
+    while (num > 1) {
+        const digitIdx = 9 - num;
+        var matches = &out.*[digitIdx];
+        // dropBefore(matches, cutOff);
+
+        var it = matches.iterator(.{});
+        while (it.next()) |idx| {
+            // TODO: real logic
+            try insertSorted(alloc, &selected, .{ .idx = idx, .num = num });
+        }
+
+        num -= 1;
+    }
+
+    var res: usize = 0;
+    for (0..12) |idx| {
+        const base = selected.items[idx].num;
+        const raise = 11 - idx;
+
+        res += base * std.math.pow(usize, 10, raise);
+    }
+
+    return res;
+}
+
+test "findJoltsP2 sample lines" {
+    const alloc = std.testing.allocator;
+    var ws = DigitWorkspace.init();
+    defer ws.deinit(alloc);
+
+    const cases = [_]struct { line: []const u8, expect: usize }{
+        .{ .line = "987654321111111", .expect = 987654321111 },
+        .{ .line = "811111111111119", .expect = 811111111119 },
+        .{ .line = "234234234234278", .expect = 434234234278 },
+        .{ .line = "818181911112111", .expect = 888911112111 },
+    };
+
+    for (cases) |case| {
+        const res = try findJoltsP1(DigitWorkspace.digits, alloc, case.line, &ws.out);
         try std.testing.expectEqual(case.expect, res);
     }
 }
