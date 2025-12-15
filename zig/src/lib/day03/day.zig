@@ -5,6 +5,21 @@ const aocLib = @import("aocLib");
 
 pub const day = aocLib.Day{ .part1 = part01, .part2 = part02 };
 
+const DigitWorkspace = struct {
+    pub const digits: []const u8 = "98765432";
+    out: [digits.len]BitSet,
+
+    pub fn init() DigitWorkspace {
+        var self = DigitWorkspace{ .out = undefined };
+        for (&self.out) |*bs| bs.* = .{};
+        return self;
+    }
+
+    pub fn deinit(self: *DigitWorkspace, alloc: std.mem.Allocator) void {
+        for (&self.out) |*bs| bs.deinit(alloc);
+    }
+};
+
 fn MaskInt(comptime LANES: usize) type {
     return std.meta.Int(.unsigned, LANES); // u16/u32/u64
 }
@@ -72,13 +87,16 @@ fn findJolts(comptime digits: []const u8, alloc: std.mem.Allocator, line: []cons
     // could probably be smart with other conditions but this will make me think less
     var haveAdded = false;
 
-    for (out.*, 0..) |_, digitIdx| {
+    var num: usize = 9;
+
+    while (num > 1) {
+        const digitIdx = 9 - num;
         var matches = &out.*[digitIdx];
-        const num = 9 - digitIdx;
         dropBefore(matches, cutOff);
         if (matches.findFirstSet()) |idx| {
+            matches.unset(idx);
             defer haveAdded = true;
-            const isLastDigit = idx != line.len - 1;
+            const isLastDigit = idx == line.len - 1;
 
             if (!isLastDigit) {
                 cutOff = idx;
@@ -94,6 +112,8 @@ fn findJolts(comptime digits: []const u8, alloc: std.mem.Allocator, line: []cons
             if (haveAdded) {
                 return jolts;
             }
+        } else {
+            num -= 1;
         }
     }
 
@@ -101,22 +121,18 @@ fn findJolts(comptime digits: []const u8, alloc: std.mem.Allocator, line: []cons
 }
 
 pub fn part01(alloc: std.mem.Allocator, input: []const u8) anyerror!void {
-    const digits: []const u8 = "98765432";
-
-    var out: [digits.len]BitSet = undefined;
-
-    for (&out) |*bs| bs.* = .{};
-    defer for (&out) |*bs| bs.deinit(alloc);
+    var digits_ws = DigitWorkspace.init();
+    defer digits_ws.deinit(alloc);
 
     var res: usize = 0;
 
     var it = std.mem.tokenizeScalar(u8, input, '\n');
     while (it.next()) |token| {
         const jolts = try findJolts(
-            digits,
+            DigitWorkspace.digits,
             alloc,
             token,
-            &out,
+            &digits_ws.out,
         );
 
         res += jolts;
@@ -129,6 +145,21 @@ pub fn part02(_: std.mem.Allocator, _: []const u8) anyerror!void {
     std.debug.print("Part 2\n", .{});
 }
 
-test {
-    std.testing.refAllDecls(@This());
+test "findJolts sample lines" {
+    const alloc = std.testing.allocator;
+    var ws = DigitWorkspace.init();
+    defer ws.deinit(alloc);
+
+    const cases = [_]struct { line: []const u8, expect: usize }{
+        .{ .line = "987654321111111", .expect = 98 },
+        .{ .line = "811111111111119", .expect = 89 },
+        .{ .line = "234234234234278", .expect = 78 },
+        .{ .line = "818181911112111", .expect = 92 },
+        .{ .line = "1119911", .expect = 99 },
+    };
+
+    for (cases) |case| {
+        const res = try findJolts(DigitWorkspace.digits, alloc, case.line, &ws.out);
+        try std.testing.expectEqual(case.expect, res);
+    }
 }
