@@ -1,5 +1,6 @@
 const std = @import("std");
 const BitSet = std.bit_set.DynamicBitSetUnmanaged;
+const Direction = std.bit_set.IteratorOptions.Direction;
 
 const aocLib = @import("aocLib");
 
@@ -240,7 +241,7 @@ fn countUnsetAfter(bs: BitSet, idx: usize) usize {
     var it = bs.iterator(.{ .kind = .unset, .direction = .forward });
     var n: usize = 0;
     while (it.next()) |i| {
-        if (i >= idx) {
+        if (i > idx) {
             n += 1;
         }
     }
@@ -262,6 +263,12 @@ pub fn unionAfter(out: []BitSet, alloc: std.mem.Allocator, idx: usize) !BitSet {
     return result;
 }
 
+fn firstLastSet(bs: anytype) ?struct { first: usize, last: usize } {
+    const first = bs.findFirstSet() orelse return null;
+    const last = bs.findLastSet() orelse unreachable; // if first exists, last does too
+    return .{ .first = first, .last = last };
+}
+
 fn findJoltsP2(comptime digits: []const u8, alloc: std.mem.Allocator, line: []const u8, out: *[digits.len]BitSet) !usize {
     try findPerNeedle(32, digits, alloc, line, out);
 
@@ -275,6 +282,7 @@ fn findJoltsP2(comptime digits: []const u8, alloc: std.mem.Allocator, line: []co
     defer selected.deinit(alloc);
 
     while (num >= 1) {
+        std.debug.print("\n----{d}----\n", .{num});
         if (selected.list.items.len >= 12) {
             break;
         }
@@ -283,37 +291,68 @@ fn findJoltsP2(comptime digits: []const u8, alloc: std.mem.Allocator, line: []co
 
         dropBefore(matches, cutOff);
 
-        if (matches.findFirstSet()) |idx| {
-            const numAvailable = countUnsetAfter(selected.bs, idx);
-            const currSelected = selected.bs.count();
+        // if (matches.findFirstSet()) |idx| {
+        //     if (idx < cutOff) break;
+        //     const numAvailable = countUnsetAfter(selected.bs, idx);
+        //     const currSelected = selected.bs.count();
 
-            if (currSelected + numAvailable >= 12) {
-                cutOff = idx;
-            }
-        }
+        //     if (currSelected + numAvailable >= 12) {
+        //         cutOff = idx;
+        //     }
+        // }
 
         var possibleAfter = try unionAfter(out, alloc, digitIdx + 1);
         defer possibleAfter.deinit(alloc);
 
         dropBefore(&possibleAfter, cutOff);
 
-        // TODO: i couldnt just do the iterator setup in a if because type mismatch b/c dir?
-        // could probably be smarter but ehhhh
-        if (possibleAfter.count() == 0) {
-            var it = matches.iterator(.{ .direction = .reverse });
-            while (it.next()) |idx| {
-                if (selected.list.items.len < 12) {
-                    try selected.insert(alloc, .{ .idx = idx, .num = num });
-                }
+        // var it = AnyBitIter.init(matches, if (possibleAfter.count() == 0) .reverse else .forward);
+
+        var it = matches.iterator(.{});
+
+        while (it.next()) |idx| {
+            if (selected.list.items.len < 12) {
+                try selected.insert(alloc, .{ .idx = idx, .num = num });
             }
-        } else {
-            var it = matches.iterator(.{ .direction = .forward });
-            while (it.next()) |idx| {
-                if (selected.list.items.len < 12) {
-                    try selected.insert(alloc, .{ .idx = idx, .num = num });
+        }
+
+        if (num == 1) {
+            break;
+        }
+
+        // var selectedIt = selected.bs.iterator(.{});
+        const currSelected = selected.bs.count();
+
+        if (firstLastSet(selected.bs)) |fs| {
+            // TODO: this gets sad when first and last elem are selected.....
+            // need to be smarter about cutting off
+            std.debug.print("fs: {}\n", .{fs});
+            const start = @max(cutOff, fs.first);
+
+            for (start..(fs.last + 1)) |idx| {
+                const numAvailable = countUnsetAfter(selected.bs, idx);
+
+                std.debug.print("cutOff: {d}\t currSelected: {d}\tidx: {d}\tnumAvailable: {d}\n", .{
+                    cutOff,
+                    currSelected,
+                    idx,
+                    numAvailable,
+                });
+                if (currSelected + numAvailable >= 12) {
+                    cutOff = idx;
                 }
             }
         }
+
+        // while (selectedIt.next()) |idx| {
+        //     if (idx < cutOff) continue;
+
+        //     const numAvailable = countUnsetAfter(selected.bs, idx);
+
+        //     if (currSelected + numAvailable >= 12) {
+        //         cutOff = idx;
+        //     }
+        // }
 
         num -= 1;
     }
@@ -340,7 +379,10 @@ test "findJoltsP2 sample lines" {
         // .{ .line = "234234234234278", .expect = 434234234278 },
         // .{ .line = "818181911112111", .expect = 888911112111 },
         // .{ .line = "838383933533333", .expect = 888933533333 },
-        .{ .line = "858383935533333", .expect = 888935533333 },
+        // .{ .line = "858383935533333", .expect = 888935533333 },
+        // .{ .line = "958383935533339", .expect = 988935533339 },
+        // .{ .line = "911511118111119", .expect = 951118111119 },
+        .{ .line = "922511118111119", .expect = 951118111119 },
     };
 
     for (cases) |case| {
