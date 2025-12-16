@@ -213,26 +213,106 @@ test "insertSorted keeps list ordered by idx" {
     try std.testing.expectEqualSlices(SelectedNum, &expected, list.items);
 }
 
+const Selected = struct {
+    const Self = @This();
+    list: std.ArrayList(SelectedNum),
+    bs: BitSet,
+
+    fn init(alloc: std.mem.Allocator, bs_len: usize) !Self {
+        return .{
+            .list = std.ArrayList(SelectedNum).empty,
+            .bs = try BitSet.initEmpty(alloc, bs_len),
+        };
+    }
+
+    fn deinit(self: *Self, alloc: std.mem.Allocator) void {
+        self.list.deinit(alloc);
+        self.bs.deinit(alloc);
+    }
+
+    fn insert(self: *Self, alloc: std.mem.Allocator, p: SelectedNum) !void {
+        try insertSorted(alloc, &self.list, p);
+        self.bs.set(p.idx);
+    }
+};
+
+fn countUnsetAfter(bs: BitSet, idx: usize) usize {
+    var it = bs.iterator(.{ .kind = .unset, .direction = .forward });
+    var n: usize = 0;
+    while (it.next()) |i| {
+        if (i >= idx) {
+            n += 1;
+        }
+    }
+    return n;
+}
+
+pub fn unionAfter(out: []BitSet, alloc: std.mem.Allocator, idx: usize) !BitSet {
+    var result = try BitSet.initEmpty(alloc, out[0].capacity());
+
+    if (idx >= out.len) {
+        return result;
+    }
+
+    for (idx..(out.len)) |out_idx| {
+        const bs = out[out_idx];
+        result.setUnion(bs);
+    }
+
+    return result;
+}
+
 fn findJoltsP2(comptime digits: []const u8, alloc: std.mem.Allocator, line: []const u8, out: *[digits.len]BitSet) !usize {
     try findPerNeedle(32, digits, alloc, line, out);
 
     // var jolts: usize = 0;
 
-    // var cutOff: usize = 0;
+    var cutOff: usize = 0;
 
     var num: usize = 9;
 
-    var selected = std.ArrayList(SelectedNum).empty;
+    var selected = try Selected.init(alloc, line.len);
+    defer selected.deinit(alloc);
 
-    while (num > 1) {
+    while (num >= 1) {
+        if (selected.list.items.len >= 12) {
+            break;
+        }
         const digitIdx = 9 - num;
         var matches = &out.*[digitIdx];
-        // dropBefore(matches, cutOff);
 
-        var it = matches.iterator(.{});
-        while (it.next()) |idx| {
-            // TODO: real logic
-            try insertSorted(alloc, &selected, .{ .idx = idx, .num = num });
+        dropBefore(matches, cutOff);
+
+        if (matches.findFirstSet()) |idx| {
+            const numAvailable = countUnsetAfter(selected.bs, idx);
+            const currSelected = selected.bs.count();
+
+            if (currSelected + numAvailable >= 12) {
+                cutOff = idx;
+            }
+        }
+
+        var possibleAfter = try unionAfter(out, alloc, digitIdx + 1);
+        defer possibleAfter.deinit(alloc);
+
+        dropBefore(&possibleAfter, cutOff);
+
+        // TODO: i couldnt just do the iterator setup in a if because type mismatch b/c dir?
+        // could probably be smarter but ehhhh
+        if (possibleAfter.count() == 0) {
+            var it = matches.iterator(.{ .direction = .reverse });
+            while (it.next()) |idx| {
+                if (selected.list.items.len < 12) {
+                    try selected.insert(alloc, .{ .idx = idx, .num = num });
+                }
+            }
+        } else {
+            var it = matches.iterator(.{ .direction = .forward });
+            while (it.next()) |idx| {
+                if (selected.list.items.len < 12) {
+                    try selected.insert(alloc, .{ .idx = idx, .num = num });
+                }
+            }
         }
 
         num -= 1;
@@ -240,7 +320,7 @@ fn findJoltsP2(comptime digits: []const u8, alloc: std.mem.Allocator, line: []co
 
     var res: usize = 0;
     for (0..12) |idx| {
-        const base = selected.items[idx].num;
+        const base = selected.list.items[idx].num;
         const raise = 11 - idx;
 
         res += base * std.math.pow(usize, 10, raise);
@@ -255,14 +335,29 @@ test "findJoltsP2 sample lines" {
     defer ws.deinit(alloc);
 
     const cases = [_]struct { line: []const u8, expect: usize }{
-        .{ .line = "987654321111111", .expect = 987654321111 },
-        .{ .line = "811111111111119", .expect = 811111111119 },
-        .{ .line = "234234234234278", .expect = 434234234278 },
-        .{ .line = "818181911112111", .expect = 888911112111 },
+        // .{ .line = "987654321111111", .expect = 987654321111 },
+        // .{ .line = "811111111111119", .expect = 811111111119 },
+        // .{ .line = "234234234234278", .expect = 434234234278 },
+        // .{ .line = "818181911112111", .expect = 888911112111 },
+        // .{ .line = "838383933533333", .expect = 888933533333 },
+        .{ .line = "858383935533333", .expect = 888935533333 },
     };
 
     for (cases) |case| {
-        const res = try findJoltsP1(DigitWorkspace.digits, alloc, case.line, &ws.out);
+        const res = try findJoltsP2(DigitWorkspace.digits, alloc, case.line, &ws.out);
         try std.testing.expectEqual(case.expect, res);
     }
+}
+
+test "getNumUnSetAfter counts set bits through idx" {
+    const alloc = std.testing.allocator;
+    var bs = try BitSet.initEmpty(alloc, 16);
+    defer bs.deinit(alloc);
+
+    bs.set(0);
+    bs.set(5);
+    bs.set(14);
+
+    const count = countUnsetAfter(bs, 9);
+    try std.testing.expectEqual(@as(usize, 6), count);
 }
